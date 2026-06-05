@@ -1,0 +1,54 @@
+[
+  {
+    "id": "to9ep163z",
+    "name": "Base 1",
+    "lat": 8.162555700160631,
+    "lng": 3.7683105468750004,
+    "radiusNm": 123,
+    "aircraftCount": 3,
+    "aircraft": [
+      {
+        "id": "r5m9xbrhn",
+        "name": "Base 1_A1",
+        "configuration": "Fuel"
+      },
+      {
+        "id": "8wg01gxf5",
+        "name": "Base 1_A2",
+        "configuration": "Cargo"
+      },
+      {
+        "id": "xmxokhmon",
+        "name": "Base 1_A3",
+        "configuration": "Cargo"
+      }
+    ]
+  },
+  {
+    "id": "4aghnx55v",
+    "name": "Base 2",
+    "lat": 6.271618064314864,
+    "lng": 6.855468750000001,
+    "radiusNm": 123,
+    "aircraftCount": 0,
+    "aircraft": []
+  },
+  {
+    "id": "9f7c7h9b5",
+    "name": "Base 3",
+    "lat": 9.35693278871854,
+    "lng": 6.767578125000001,
+    "radiusNm": 123,
+    "aircraftCount": 0,
+    "aircraft": []
+  },
+  {
+    "id": "tad6ye7op",
+    "name": "PHI",
+    "lat": 29.582330844341488,
+    "lng": -90.70861816406251,
+    "radiusNm": 245,
+    "aircraftCount": 0,
+    "aircraft": []
+  }
+]

@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Rust/Tauri build artifacts (these are very large — never commit)
+src-tauri/target/
+
+# Environment
+.env
+.env.local
+*.local
+
+# Editor
+.vscode/settings.json
+.idea/

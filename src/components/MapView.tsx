@@ -1,8 +1,21 @@
-import { MapContainer, TileLayer, useMapEvents, Polyline, Marker, Tooltip } from 'react-leaflet'
+import { useEffect } from 'react'
+import { MapContainer, TileLayer, useMap, useMapEvents, Polyline, Marker, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import { useMapStore, type MeasurePoint } from '../store/mapStore'
 import NodeMarker from './NodeMarker'
 import ZoomSlider from './ZoomSlider'
+
+function MapResizer() {
+  const map = useMap()
+  const sidebarOpen = useMapStore((s) => s.sidebarOpen)
+
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 210)
+    return () => clearTimeout(t)
+  }, [sidebarOpen, map])
+
+  return null
+}
 
 function PlacementHandler() {
   const { placementMode, addNode, selectNode, measureMode, addMeasurePoint } = useMapStore()
@@ -112,6 +125,7 @@ export default function MapView() {
         maxZoom={19}
       />
       <ZoomSlider />
+      <MapResizer />
       <PlacementHandler />
       {nodes.map((node) => (
         <NodeMarker key={node.id} node={node} />

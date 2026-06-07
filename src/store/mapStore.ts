@@ -22,6 +22,13 @@ interface MapStore {
   measurePoints: MeasurePoint[];
   theme: Theme;
   sidebarOpen: boolean;
+  // Throughput
+  throughputMode: boolean;
+  supplyNode: { lat: number; lng: number } | null;
+  missionTime: number;
+  maxMissionTime: number;
+  fuelAtSupply: boolean;
+  throughputBaseId: string;
   addNode: (lat: number, lng: number) => void;
   updateNode: (id: string, updates: Partial<AircraftBase>) => void;
   deleteNode: (id: string) => void;
@@ -35,6 +42,14 @@ interface MapStore {
   clearMeasure: () => void;
   setTheme: (t: Theme) => void;
   toggleSidebar: () => void;
+  // Throughput actions
+  setThroughputMode: (active: boolean) => void;
+  setSupplyNode: (lat: number, lng: number) => void;
+  clearSupplyNode: () => void;
+  setMissionTime: (minutes: number) => void;
+  setMaxMissionTime: (minutes: number) => void;
+  setFuelAtSupply: (value: boolean) => void;
+  setThroughputBaseId: (id: string) => void;
 }
 
 function generateId(): string {
@@ -68,6 +83,12 @@ export const useMapStore = create<MapStore>((set) => ({
   measurePoints: [],
   theme: _savedTheme,
   sidebarOpen: true,
+  throughputMode: false,
+  supplyNode: null,
+  missionTime: 0,
+  maxMissionTime: 480,
+  fuelAtSupply: false,
+  throughputBaseId: 'closest',
 
   addNode: (lat, lng) => {
     const name = `Base ${nodeCounter++}`;
@@ -111,7 +132,13 @@ export const useMapStore = create<MapStore>((set) => ({
 
   selectNode: (id) => set({ selectedId: id }),
 
-  setPlacementMode: (mode) => set({ placementMode: mode }),
+  setPlacementMode: (mode) => {
+    if (mode === 'placing') {
+      set({ placementMode: mode, throughputMode: false, supplyNode: null })
+    } else {
+      set({ placementMode: mode })
+    }
+  },
 
   updateAircraftConfig: (nodeId, aircraftId, config) => {
     set((s) => ({
@@ -133,7 +160,12 @@ export const useMapStore = create<MapStore>((set) => ({
   },
 
   setMeasureMode: (active) => {
-    set({ measureMode: active, measurePoints: [], placementMode: 'idle' });
+    set({
+      measureMode: active,
+      measurePoints: [],
+      placementMode: 'idle',
+      ...(active ? { throughputMode: false, supplyNode: null } : {}),
+    })
   },
 
   addMeasurePoint: (lat, lng) => {
@@ -161,4 +193,18 @@ export const useMapStore = create<MapStore>((set) => ({
   },
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+
+  setThroughputMode: (active) => {
+    if (active) {
+      set({ throughputMode: true, measureMode: false, measurePoints: [], placementMode: 'idle' })
+    } else {
+      set({ throughputMode: false, supplyNode: null, missionTime: 0 })
+    }
+  },
+  setSupplyNode: (lat, lng) => set({ supplyNode: { lat, lng } }),
+  clearSupplyNode: () => set({ supplyNode: null, missionTime: 0 }),
+  setMissionTime: (minutes) => set({ missionTime: minutes }),
+  setMaxMissionTime: (minutes) => set({ maxMissionTime: minutes }),
+  setFuelAtSupply: (value) => set({ fuelAtSupply: value }),
+  setThroughputBaseId: (id) => set({ throughputBaseId: id }),
 }));

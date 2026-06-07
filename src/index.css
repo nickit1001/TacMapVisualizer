@@ -335,6 +335,22 @@ input[type='range'].slider-zoom {
     color: #E8E8F0;
   }
 
+  .btn-throughput {
+    border-color: #4488FF;
+    color: #4488FF;
+  }
+
+  .btn-throughput:hover {
+    background: #4488FF;
+    color: var(--color-bg);
+  }
+
+  .btn-throughput-active {
+    background: #4488FF;
+    border-color: #4488FF;
+    color: var(--color-bg);
+  }
+
   .section-header {
     @apply px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted border-b border-border flex-none;
   }

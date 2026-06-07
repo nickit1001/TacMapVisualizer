@@ -4,23 +4,33 @@ import L from 'leaflet'
 import { useMapStore, type MeasurePoint } from '../store/mapStore'
 import NodeMarker from './NodeMarker'
 import ZoomSlider from './ZoomSlider'
+import ThroughputOverlay from './ThroughputOverlay'
 
 function MapResizer() {
   const map = useMap()
   const sidebarOpen = useMapStore((s) => s.sidebarOpen)
+  const throughputMode = useMapStore((s) => s.throughputMode)
 
   useEffect(() => {
     const t = setTimeout(() => map.invalidateSize(), 210)
     return () => clearTimeout(t)
-  }, [sidebarOpen, map])
+  }, [sidebarOpen, throughputMode, map])
 
   return null
 }
 
 function PlacementHandler() {
-  const { placementMode, addNode, selectNode, measureMode, addMeasurePoint } = useMapStore()
+  const {
+    placementMode, addNode, selectNode,
+    measureMode, addMeasurePoint,
+    throughputMode, supplyNode, setSupplyNode,
+  } = useMapStore()
   useMapEvents({
     click(e) {
+      if (throughputMode && !supplyNode) {
+        setSupplyNode(e.latlng.lat, e.latlng.lng)
+        return
+      }
       if (measureMode) {
         addMeasurePoint(e.latlng.lat, e.latlng.lng)
         return
@@ -102,8 +112,11 @@ function MeasureOverlay({ points }: { points: MeasurePoint[] }) {
 }
 
 export default function MapView() {
-  const { nodes, placementMode, measureMode, measurePoints, theme } = useMapStore()
-  const cursor = measureMode || placementMode === 'placing' ? 'cursor-crosshair' : ''
+  const { nodes, placementMode, measureMode, measurePoints, theme, throughputMode, supplyNode } = useMapStore()
+  const cursor =
+    measureMode || placementMode === 'placing' || (throughputMode && !supplyNode)
+      ? 'cursor-crosshair'
+      : ''
   const tileUrl = theme === 'light'
     ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -127,6 +140,7 @@ export default function MapView() {
       <ZoomSlider />
       <MapResizer />
       <PlacementHandler />
+      <ThroughputOverlay />
       {nodes.map((node) => (
         <NodeMarker key={node.id} node={node} />
       ))}

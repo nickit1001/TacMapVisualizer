@@ -8,16 +8,31 @@ import NodeSettings from './NodeSettings'
 import type { AircraftBase } from '../types'
 import { isTauri } from '../lib/isTauri'
 import { buildShareUrl } from '../lib/share'
+import { calcThroughput, findClosestBase } from '../lib/throughput'
 
 export default function Sidebar() {
   const {
     placementMode, setPlacementMode, loadNodes, nodes,
     measureMode, setMeasureMode, measurePoints,
     sidebarOpen, theme, setTheme,
+    throughputMode, setThroughputMode,
+    supplyNode, clearSupplyNode,
+    missionTime, maxMissionTime, setMaxMissionTime,
+    fuelAtSupply, setFuelAtSupply,
+    throughputBaseId, setThroughputBaseId,
   } = useMapStore()
   const isPlacing = placementMode === 'placing'
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  const resolvedThroughputBase = supplyNode
+    ? (throughputBaseId === 'closest'
+        ? findClosestBase(nodes, supplyNode)
+        : (nodes.find((n) => n.id === throughputBaseId) ?? null))
+    : null
+  const throughputResult = resolvedThroughputBase && supplyNode
+    ? calcThroughput(resolvedThroughputBase, supplyNode, missionTime, fuelAtSupply)
+    : null
 
   async function handleSave() {
     if (isTauri()) {
@@ -144,7 +159,10 @@ export default function Sidebar() {
       {/* Toolbar */}
       <div className="px-3 py-3 border-b border-border flex gap-2 flex-none flex-wrap" style={{ minWidth: '288px' }}>
         <button
-          onClick={() => { setPlacementMode(isPlacing ? 'idle' : 'placing'); if (measureMode) setMeasureMode(false) }}
+          onClick={() => {
+            setPlacementMode(isPlacing ? 'idle' : 'placing')
+            if (measureMode) setMeasureMode(false)
+          }}
           className={`btn flex-1 ${isPlacing ? 'btn-accent-active' : 'btn-accent'}`}
         >
           {isPlacing ? '✕ Cancel' : '+ Place Base'}
@@ -155,6 +173,13 @@ export default function Sidebar() {
           title="Click two points on the map to measure distance in NM"
         >
           {measureMode ? '✕ Measure' : '⟺ Measure'}
+        </button>
+        <button
+          onClick={() => setThroughputMode(!throughputMode)}
+          className={`btn flex-1 ${throughputMode ? 'btn-throughput-active' : 'btn-throughput'}`}
+          title="Calculate payload throughput to a supply node"
+        >
+          {throughputMode ? '✕ Throughput' : '↗ Throughput'}
         </button>
         <button onClick={handleLoad} className="btn btn-ghost px-2.5" title="Load map from file">
           ↑ Load
@@ -168,6 +193,141 @@ export default function Sidebar() {
           </button>
         )}
       </div>
+
+      {/* Throughput panel */}
+      {throughputMode && (
+        <div
+          className="px-3 py-3 border-b border-border flex-none flex flex-col gap-2"
+          style={{ minWidth: '288px', background: 'var(--color-surface)' }}
+        >
+          <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#4488FF' }}>
+            Throughput Analysis
+          </div>
+
+          {!supplyNode ? (
+            <div className="text-muted text-xs">
+              Click the map to place a supply node
+            </div>
+          ) : (
+            <>
+              {/* Base selector */}
+              <div>
+                <label className="label">Source Base</label>
+                <select
+                  value={throughputBaseId}
+                  onChange={(e) => setThroughputBaseId(e.target.value)}
+                  style={{
+                    background: 'var(--color-bg)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '11px',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    width: '100%',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="closest">⟳ Closest Base (auto)</option>
+                  {nodes.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.name} — {n.aircraftCount} AC
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Fuel at supply toggle */}
+              <label
+                className="flex items-center gap-2 text-xs cursor-pointer"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={fuelAtSupply}
+                  onChange={(e) => setFuelAtSupply(e.target.checked)}
+                  style={{ accentColor: '#4488FF', cursor: 'pointer' }}
+                />
+                Fuel available at supply node
+              </label>
+
+              {/* Max time */}
+              <div className="flex items-center gap-2">
+                <label className="label mb-0">Max time</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={240}
+                  step={1}
+                  value={Math.round(maxMissionTime / 60)}
+                  onChange={(e) => setMaxMissionTime(Math.max(1, Number(e.target.value)) * 60)}
+                  className="input"
+                  style={{ width: '60px' }}
+                />
+                <span className="text-muted text-xs">hours</span>
+              </div>
+
+              {/* Stats readout */}
+              {throughputResult ? (
+                <div
+                  className="rounded text-xs"
+                  style={{
+                    background: 'rgba(68,136,255,0.07)',
+                    border: '1px solid rgba(68,136,255,0.2)',
+                    padding: '8px 10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '3px',
+                  }}
+                >
+                  <div className="text-muted">
+                    Distance:{' '}
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {throughputResult.distanceNm.toFixed(1)} NM
+                    </strong>
+                  </div>
+                  <div className="text-muted">
+                    Payload/trip:{' '}
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {throughputResult.payloadPerTrip.toFixed(0)} lbs
+                    </strong>
+                  </div>
+                  <div className="text-muted">
+                    Trips completed:{' '}
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {throughputResult.tripsCompleted}
+                    </strong>
+                  </div>
+                  <div>
+                    Total delivered:{' '}
+                    <strong style={{ color: '#FFCC00' }}>
+                      {throughputResult.totalPayloadDelivered.toLocaleString('en-US', {
+                        maximumFractionDigits: 0,
+                      })}{' '}
+                      lbs
+                    </strong>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-muted text-xs">
+                  {resolvedThroughputBase
+                    ? `${resolvedThroughputBase.name} has 0 aircraft`
+                    : 'No bases on map'}
+                </div>
+              )}
+
+              {/* Clear supply node */}
+              <button
+                onClick={clearSupplyNode}
+                className="btn btn-ghost text-xs"
+                style={{ fontSize: '11px' }}
+              >
+                ✕ Clear Supply Node
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Measure readout */}
       {measureMode && (

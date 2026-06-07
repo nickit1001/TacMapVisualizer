@@ -86,7 +86,7 @@ export const useMapStore = create<MapStore>((set) => ({
   throughputMode: false,
   supplyNode: null,
   missionTime: 0,
-  maxMissionTime: 480,
+  maxMissionTime: 1440,
   fuelAtSupply: false,
   throughputBaseId: 'closest',
 
@@ -134,7 +134,7 @@ export const useMapStore = create<MapStore>((set) => ({
 
   setPlacementMode: (mode) => {
     if (mode === 'placing') {
-      set({ placementMode: mode, throughputMode: false, supplyNode: null })
+      set({ placementMode: mode, throughputMode: false })
     } else {
       set({ placementMode: mode })
     }
@@ -164,7 +164,7 @@ export const useMapStore = create<MapStore>((set) => ({
       measureMode: active,
       measurePoints: [],
       placementMode: 'idle',
-      ...(active ? { throughputMode: false, supplyNode: null } : {}),
+      ...(active ? { throughputMode: false } : {}),
     })
   },
 
@@ -198,7 +198,7 @@ export const useMapStore = create<MapStore>((set) => ({
     if (active) {
       set({ throughputMode: true, measureMode: false, measurePoints: [], placementMode: 'idle' })
     } else {
-      set({ throughputMode: false, supplyNode: null, missionTime: 0 })
+      set({ throughputMode: false, missionTime: 0 })
     }
   },
   setSupplyNode: (lat, lng) => set({ supplyNode: { lat, lng } }),

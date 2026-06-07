@@ -1,6 +1,11 @@
 import { useMapStore } from '../store/mapStore'
 import { calcThroughput, findClosestBase } from '../lib/throughput'
 
+interface Props {
+  isPlaying: boolean
+  onPlayPause: () => void
+}
+
 function formatTime(minutes: number): string {
   const h = Math.floor(minutes / 60)
   const m = Math.floor(minutes % 60)
@@ -27,7 +32,7 @@ function phaseLabel(phase: string): string {
   }
 }
 
-export default function TimeSlider() {
+export default function TimeSlider({ isPlaying, onPlayPause }: Props) {
   const {
     missionTime, setMissionTime,
     maxMissionTime, setMaxMissionTime,
@@ -58,12 +63,35 @@ export default function TimeSlider() {
     >
       {/* Slider row */}
       <div className="flex items-center gap-3">
+        {/* Play/pause button */}
+        <button
+          onClick={onPlayPause}
+          title="Play/Pause simulation (Spacebar)"
+          style={{
+            background: isPlaying ? '#4488FF' : 'var(--color-surface)',
+            border: `1px solid ${isPlaying ? '#4488FF' : 'var(--color-border)'}`,
+            color: isPlaying ? 'var(--color-bg)' : 'var(--color-text-muted)',
+            borderRadius: '4px',
+            width: '26px',
+            height: '26px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          {isPlaying ? '⏸' : '▶'}
+        </button>
+
         <span
           className="text-xs font-mono flex-none"
           style={{ color: 'var(--color-accent)', minWidth: '80px' }}
         >
           {formatTime(missionTime)}
         </span>
+
         <input
           type="range"
           min={0}
@@ -73,8 +101,8 @@ export default function TimeSlider() {
           onChange={(e) => setMissionTime(Number(e.target.value))}
           style={{ flex: 1 }}
         />
+
         <div className="flex items-center gap-1 flex-none">
-          <span className="text-muted text-xs font-mono">{Math.round(maxMissionTime / 60)}h max</span>
           <input
             type="number"
             min={1}
@@ -85,18 +113,20 @@ export default function TimeSlider() {
               const hrs = Math.max(1, Math.min(240, Number(e.target.value)))
               setMaxMissionTime(hrs * 60)
             }}
+            title="Max mission time (hours)"
             style={{
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               color: 'var(--color-text-muted)',
               fontSize: '11px',
-              padding: '1px 4px',
+              padding: '2px 4px',
               borderRadius: '3px',
-              width: '40px',
+              width: '36px',
               outline: 'none',
               textAlign: 'center',
             }}
           />
+          <span className="text-muted text-xs">h max</span>
         </div>
       </div>
 
@@ -131,7 +161,9 @@ export default function TimeSlider() {
           </>
         ) : (
           <span className="text-muted">
-            {supplyNode ? 'No base with aircraft found' : 'Place a supply node on the map to begin'}
+            {supplyNode
+              ? 'No base with aircraft — assign aircraft in node settings'
+              : 'Place a supply node on the map to begin'}
           </span>
         )}
       </div>

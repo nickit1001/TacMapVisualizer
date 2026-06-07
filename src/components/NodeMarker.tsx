@@ -39,7 +39,7 @@ interface Props {
 }
 
 export default function NodeMarker({ node }: Props) {
-  const { selectNode, updateNode, selectedId, measureMode, addMeasurePoint } = useMapStore()
+  const { selectNode, updateNode, selectedId, measureMode, addMeasurePoint, throughputMode, supplyNode } = useMapStore()
   const isSelected = selectedId === node.id
   const draggingRef = useRef(false)
 
@@ -113,6 +113,8 @@ export default function NodeMarker({ node }: Props) {
           eventHandlers={{
             click: (e) => {
               if (measureMode) return
+              // During throughput placement, let the click fall through to the map
+              if (throughputMode && !supplyNode) return
               L.DomEvent.stopPropagation(e)
               selectNode(node.id)
             },

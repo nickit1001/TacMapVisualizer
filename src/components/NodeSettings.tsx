@@ -1,19 +1,26 @@
 import { useMapStore } from '../store/mapStore'
 
 export default function NodeSettings() {
-  const { nodes, selectedId, updateNode, updateAircraftConfig } = useMapStore()
-  const node = nodes.find((n) => n.id === selectedId)
+  const {
+    nodes, selectedId, updateNode,
+    fleet, assignFleetMemberToBase,
+  } = useMapStore()
 
+  const node = nodes.find((n) => n.id === selectedId)
   if (!node) {
     return (
       <div className="px-4 py-5 text-center text-muted text-xs leading-relaxed">
-        Select a base from the list<br />to view and edit its settings.
+        Select a base to view and edit its settings.
       </div>
     )
   }
 
+  const assignedAircraft = fleet.filter((a) => a.baseId === node.id)
+  const availableToAssign = fleet.filter((a) => a.baseId === null)
+
   return (
-    <div className="p-4 space-y-5 overflow-y-auto h-full">
+    <div className="p-4 space-y-4 border-t border-border" style={{ background: 'var(--color-surface)' }}>
+      {/* Base Name */}
       <div>
         <label className="label">Base Name</label>
         <input
@@ -24,27 +31,19 @@ export default function NodeSettings() {
         />
       </div>
 
+      {/* Lat / Lng */}
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="label">Latitude</label>
-          <input
-            type="text"
-            value={node.lat.toFixed(4)}
-            readOnly
-            className="input opacity-50 cursor-default"
-          />
+          <input type="text" value={node.lat.toFixed(4)} readOnly className="input opacity-50 cursor-default" />
         </div>
         <div>
           <label className="label">Longitude</label>
-          <input
-            type="text"
-            value={node.lng.toFixed(4)}
-            readOnly
-            className="input opacity-50 cursor-default"
-          />
+          <input type="text" value={node.lng.toFixed(4)} readOnly className="input opacity-50 cursor-default" />
         </div>
       </div>
 
+      {/* Radius */}
       <div>
         <label className="label">
           Radius of Action —{' '}
@@ -72,6 +71,7 @@ export default function NodeSettings() {
         />
       </div>
 
+      {/* Max range ring */}
       <div>
         <label className="label">Max Range Ring</label>
         <button
@@ -82,61 +82,77 @@ export default function NodeSettings() {
         </button>
       </div>
 
+      {/* Assigned aircraft from fleet */}
       <div>
-        <label className="label">Number of Aircraft</label>
-        <input
-          type="number"
-          min={0}
-          max={100}
-          value={node.aircraftCount}
-          onChange={(e) =>
-            updateNode(node.id, { aircraftCount: Math.max(0, Math.floor(Number(e.target.value))) })
-          }
-          className="input"
-        />
-      </div>
+        <label className="label">Stationed Aircraft ({assignedAircraft.length})</label>
 
-      {node.aircraft.length > 0 && (
-        <div>
-          <label className="label mb-2 block">Aircraft Manifest</label>
-          <div className="rounded border border-border overflow-hidden">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-surface border-b border-border">
-                  <th className="px-3 py-2 text-left text-muted font-medium w-28">Callsign</th>
-                  <th className="px-3 py-2 text-left text-muted font-medium">Cargo Type</th>
-                </tr>
-              </thead>
-              <tbody>
-                {node.aircraft.map((aircraft, idx) => (
-                  <tr
-                    key={aircraft.id}
-                    style={{ borderTop: idx > 0 ? '1px solid var(--color-border)' : undefined }}
-                  >
-                    <td
-                      className="px-3 py-2 font-mono"
-                      style={{ color: 'var(--color-accent)' }}
-                    >
-                      {aircraft.name}
-                    </td>
-                    <td className="px-2 py-1">
-                      <input
-                        type="text"
-                        value={aircraft.configuration}
-                        placeholder="Cargo..."
-                        onChange={(e) =>
-                          updateAircraftConfig(node.id, aircraft.id, e.target.value)
-                        }
-                        className="input-inline"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {assignedAircraft.length === 0 ? (
+          <div className="text-muted text-xs mb-2">No aircraft stationed here.</div>
+        ) : (
+          <div className="flex flex-col gap-1 mb-2">
+            {assignedAircraft.map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center justify-between text-xs"
+                style={{
+                  background: 'var(--color-bg)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '4px',
+                  padding: '4px 8px',
+                }}
+              >
+                <span>
+                  <span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>{a.name}</span>
+                  <span className="text-muted ml-1">· {a.configuration}</span>
+                  {a.supplyNodeId && (
+                    <span style={{ color: '#FFCC00' }} className="ml-1">· on mission</span>
+                  )}
+                </span>
+                <button
+                  onClick={() => assignFleetMemberToBase(a.id, null)}
+                  className="text-muted hover:text-accent transition-colors ml-2"
+                  title="Remove from base"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+
+        {availableToAssign.length > 0 && (
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) assignFleetMemberToBase(e.target.value, node.id)
+            }}
+            className="w-full text-xs"
+            style={{
+              background: 'var(--color-bg)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-muted)',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="">+ Station aircraft here…</option>
+            {availableToAssign.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name} · {a.configuration}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {availableToAssign.length === 0 && fleet.length > 0 && (
+          <div className="text-muted text-xs">All fleet aircraft are stationed.</div>
+        )}
+        {fleet.length === 0 && (
+          <div className="text-muted text-xs">Add aircraft in the Fleet section first.</div>
+        )}
+      </div>
     </div>
   )
 }

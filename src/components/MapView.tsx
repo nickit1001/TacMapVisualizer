@@ -4,17 +4,17 @@ import L from 'leaflet'
 import { useMapStore, type MeasurePoint } from '../store/mapStore'
 import NodeMarker from './NodeMarker'
 import ZoomSlider from './ZoomSlider'
-import ThroughputOverlay from './ThroughputOverlay'
+import SupplyNodeOverlay from './SupplyNodeOverlay'
 
 function MapResizer() {
   const map = useMap()
   const sidebarOpen = useMapStore((s) => s.sidebarOpen)
-  const throughputMode = useMapStore((s) => s.throughputMode)
+  const selectedSupplyNodeId = useMapStore((s) => s.selectedSupplyNodeId)
 
   useEffect(() => {
     const t = setTimeout(() => map.invalidateSize(), 210)
     return () => clearTimeout(t)
-  }, [sidebarOpen, throughputMode, map])
+  }, [sidebarOpen, selectedSupplyNodeId, map])
 
   return null
 }
@@ -23,12 +23,13 @@ function PlacementHandler() {
   const {
     placementMode, addNode, selectNode,
     measureMode, addMeasurePoint,
-    throughputMode, supplyNode, setSupplyNode,
+    addSupplyNode,
   } = useMapStore()
+
   useMapEvents({
     click(e) {
-      if (throughputMode && !supplyNode) {
-        setSupplyNode(e.latlng.lat, e.latlng.lng)
+      if (placementMode === 'placing-supply-node') {
+        addSupplyNode(e.latlng.lat, e.latlng.lng)
         return
       }
       if (measureMode) {
@@ -112,9 +113,9 @@ function MeasureOverlay({ points }: { points: MeasurePoint[] }) {
 }
 
 export default function MapView() {
-  const { nodes, placementMode, measureMode, measurePoints, theme, throughputMode, supplyNode } = useMapStore()
+  const { nodes, placementMode, measureMode, measurePoints, theme } = useMapStore()
   const cursor =
-    measureMode || placementMode === 'placing' || (throughputMode && !supplyNode)
+    measureMode || placementMode === 'placing' || placementMode === 'placing-supply-node'
       ? 'cursor-crosshair'
       : ''
   const tileUrl = theme === 'light'
@@ -140,7 +141,7 @@ export default function MapView() {
       <ZoomSlider />
       <MapResizer />
       <PlacementHandler />
-      <ThroughputOverlay />
+      <SupplyNodeOverlay />
       {nodes.map((node) => (
         <NodeMarker key={node.id} node={node} />
       ))}

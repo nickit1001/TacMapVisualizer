@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import type { AircraftBase } from '../types'
+import type { AircraftBase, FleetAircraft, SupplyNode } from '../types'
 
 const CRUISE_SPEED_KTS = 100
 const SETUP_TIME_MIN = 10
@@ -22,12 +22,20 @@ export interface AircraftState {
   tripNumber: number
 }
 
-export interface ThroughputResult {
+export interface AircraftMissionResult {
+  aircraft: FleetAircraft
+  base: AircraftBase | null
   distanceNm: number
   payloadPerTrip: number
   tripsCompleted: number
+  payloadDelivered: number
+  state: AircraftState
+}
+
+export interface MissionThroughputResult {
+  aircraftResults: AircraftMissionResult[]
   totalPayloadDelivered: number
-  aircraftState: AircraftState
+  totalTrips: number
 }
 
 export function calcPayload(rangeNm: number): number {
@@ -100,30 +108,35 @@ export function getAircraftState(
   return { lat: baseLat, lng: baseLng, phase: 'refueling', tripNumber: trips.length - 1 }
 }
 
-export function calcThroughput(
-  base: AircraftBase,
-  supply: { lat: number; lng: number },
+export function calcMissionThroughput(
+  supplyNode: SupplyNode,
+  assignedAircraft: FleetAircraft[],
+  bases: AircraftBase[],
   time: number,
-  fuelAtSupply: boolean,
-): ThroughputResult {
-  const distanceNm =
-    L.latLng(base.lat, base.lng).distanceTo(L.latLng(supply.lat, supply.lng)) / 1852
-  const payloadPerTrip = calcPayload(distanceNm)
-  const trips = buildTripSchedule(distanceNm, fuelAtSupply)
+): MissionThroughputResult {
+  const aircraftResults: AircraftMissionResult[] = assignedAircraft.map((aircraft) => {
+    const base = aircraft.baseId ? (bases.find((b) => b.id === aircraft.baseId) ?? null) : null
 
-  const tripsCompleted = trips.filter((t) => t.arrival <= time).length
-  const totalPayloadDelivered = tripsCompleted * payloadPerTrip * base.aircraftCount
+    if (!base) {
+      const noBase: AircraftState = { lat: supplyNode.lat, lng: supplyNode.lng, phase: 'setup', tripNumber: -1 }
+      return { aircraft, base: null, distanceNm: 0, payloadPerTrip: 0, tripsCompleted: 0, payloadDelivered: 0, state: noBase }
+    }
 
-  const aircraftState = getAircraftState(
-    time,
-    trips,
-    base.lat,
-    base.lng,
-    supply.lat,
-    supply.lng,
-  )
+    const distanceNm =
+      L.latLng(base.lat, base.lng).distanceTo(L.latLng(supplyNode.lat, supplyNode.lng)) / 1852
+    const payloadPerTrip = calcPayload(distanceNm)
+    const trips = buildTripSchedule(distanceNm, supplyNode.fuelAtSupply)
+    const tripsCompleted = trips.filter((t) => t.arrival <= time).length
+    const payloadDelivered = tripsCompleted * payloadPerTrip
+    const state = getAircraftState(time, trips, base.lat, base.lng, supplyNode.lat, supplyNode.lng)
 
-  return { distanceNm, payloadPerTrip, tripsCompleted, totalPayloadDelivered, aircraftState }
+    return { aircraft, base, distanceNm, payloadPerTrip, tripsCompleted, payloadDelivered, state }
+  })
+
+  const totalPayloadDelivered = aircraftResults.reduce((sum, r) => sum + r.payloadDelivered, 0)
+  const totalTrips = aircraftResults.reduce((sum, r) => sum + r.tripsCompleted, 0)
+
+  return { aircraftResults, totalPayloadDelivered, totalTrips }
 }
 
 export function findClosestBase(

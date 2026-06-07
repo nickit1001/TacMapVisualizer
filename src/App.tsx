@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import MapView from './components/MapView'
 import Sidebar from './components/Sidebar'
+import MissionSidebar from './components/MissionSidebar'
 import TimeSlider from './components/TimeSlider'
 import { useMapStore } from './store/mapStore'
 
 export default function App() {
-  const { sidebarOpen, toggleSidebar, throughputMode } = useMapStore()
+  const { sidebarOpen, toggleSidebar, supplyNodes } = useMapStore()
   const [isPlaying, setIsPlaying] = useState(false)
 
-  // Stop playback when throughput mode turns off
+  // Stop playback when no supply nodes remain
   useEffect(() => {
-    if (!throughputMode) setIsPlaying(false)
-  }, [throughputMode])
+    if (supplyNodes.length === 0) setIsPlaying(false)
+  }, [supplyNodes.length])
 
   // Spacebar toggles play/pause (ignore when focus is in an input)
   const handleKey = useCallback(
@@ -19,11 +20,11 @@ export default function App() {
       if (e.code !== 'Space') return
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (!throughputMode) return
+      if (supplyNodes.length === 0) return
       e.preventDefault()
       setIsPlaying((p) => !p)
     },
-    [throughputMode],
+    [supplyNodes.length],
   )
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [handleKey])
 
-  // 1 hr per second ticker using getState() to avoid stale closures
+  // 1 hr per second ticker
   useEffect(() => {
     if (!isPlaying) return
     const id = window.setInterval(() => {
@@ -57,8 +58,11 @@ export default function App() {
           </button>
           <MapView />
         </main>
+        <MissionSidebar />
       </div>
-      {throughputMode && <TimeSlider isPlaying={isPlaying} onPlayPause={() => setIsPlaying((p) => !p)} />}
+      {supplyNodes.length > 0 && (
+        <TimeSlider isPlaying={isPlaying} onPlayPause={() => setIsPlaying((p) => !p)} />
+      )}
     </div>
   )
 }

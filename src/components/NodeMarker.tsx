@@ -30,7 +30,6 @@ function makeMarkerIcon(selected: boolean) {
   })
 }
 
-// Vite normalizes glob keys to project-root paths; use Object.values to avoid key mismatch
 const _aircraftModules = import.meta.glob<{ default: string }>('../assets/aircraft.png', { eager: true })
 const aircraftIconUrl: string | undefined = (Object.values(_aircraftModules)[0] as { default: string } | undefined)?.default
 
@@ -39,9 +38,13 @@ interface Props {
 }
 
 export default function NodeMarker({ node }: Props) {
-  const { selectNode, updateNode, selectedId, measureMode, addMeasurePoint, throughputMode, supplyNode } = useMapStore()
+  const { selectNode, updateNode, selectedId, measureMode, addMeasurePoint, fleet, placementMode } = useMapStore()
   const isSelected = selectedId === node.id
   const draggingRef = useRef(false)
+  const aircraftCount = fleet.filter((a) => a.baseId === node.id).length
+
+  // During supply-node placement, circles should not intercept clicks
+  const isPlacingSupplyNode = placementMode === 'placing-supply-node'
 
   return (
     <>
@@ -56,9 +59,7 @@ export default function NodeMarker({ node }: Props) {
             if (measureMode) addMeasurePoint(node.lat, node.lng)
             else selectNode(node.id)
           },
-          dragstart: () => {
-            draggingRef.current = true
-          },
+          dragstart: () => { draggingRef.current = true },
           dragend: (e) => {
             const pos = (e.target as L.Marker).getLatLng()
             updateNode(node.id, { lat: pos.lat, lng: pos.lng })
@@ -66,34 +67,24 @@ export default function NodeMarker({ node }: Props) {
           },
         }}
       >
-        <Tooltip
-          permanent
-          direction="top"
-          offset={[0, -10]}
-          className="node-label-name"
-        >
+        <Tooltip permanent direction="top" offset={[0, -10]} className="node-label-name">
           {node.name}
         </Tooltip>
       </Marker>
 
-      {node.aircraftCount > 0 && (
+      {aircraftCount > 0 && (
         <Marker
           position={[node.lat, node.lng]}
           icon={L.divIcon({ className: '', html: '', iconSize: [0, 0], iconAnchor: [0, 0] })}
           interactive={false}
           zIndexOffset={-1}
         >
-          <Tooltip
-            permanent
-            direction="right"
-            offset={[10, 0]}
-            className="node-label-aircraft"
-          >
+          <Tooltip permanent direction="right" offset={[10, 0]} className="node-label-aircraft">
             {aircraftIconUrl
               ? <img src={aircraftIconUrl} style={{ width: '32px', height: '14px', verticalAlign: 'middle', marginRight: '3px' }} />
               : '✈ '
             }
-            {node.aircraftCount}
+            {aircraftCount}
           </Tooltip>
         </Marker>
       )}
@@ -113,8 +104,7 @@ export default function NodeMarker({ node }: Props) {
           eventHandlers={{
             click: (e) => {
               if (measureMode) return
-              // During throughput placement, let the click fall through to the map
-              if (throughputMode && !supplyNode) return
+              if (isPlacingSupplyNode) return  // let click fall through to map
               L.DomEvent.stopPropagation(e)
               selectNode(node.id)
             },

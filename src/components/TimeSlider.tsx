@@ -1,5 +1,5 @@
 import { useMapStore } from '../store/mapStore'
-import { calcThroughput, findClosestBase } from '../lib/throughput'
+import { calcMissionThroughput } from '../lib/throughput'
 
 interface Props {
   isPlaying: boolean
@@ -12,42 +12,21 @@ function formatTime(minutes: number): string {
   return `T+${h}h ${m.toString().padStart(2, '0')}m`
 }
 
-function phaseColor(phase: string): string {
-  switch (phase) {
-    case 'outbound': return '#4488FF'
-    case 'at-supply': return '#FFCC00'
-    case 'return': return '#44FF88'
-    default: return '#7777AA'
-  }
-}
-
-function phaseLabel(phase: string): string {
-  switch (phase) {
-    case 'setup': return 'Setting up'
-    case 'outbound': return 'Outbound'
-    case 'at-supply': return 'At supply'
-    case 'return': return 'Return'
-    case 'refueling': return 'Refueling'
-    default: return phase
-  }
-}
-
 export default function TimeSlider({ isPlaying, onPlayPause }: Props) {
   const {
     missionTime, setMissionTime,
     maxMissionTime, setMaxMissionTime,
-    supplyNode, nodes, throughputBaseId, fuelAtSupply,
+    supplyNodes, fleet, nodes,
+    selectedSupplyNodeId,
   } = useMapStore()
 
-  const resolvedBase = supplyNode
-    ? (throughputBaseId === 'closest'
-        ? findClosestBase(nodes, supplyNode)
-        : (nodes.find((n) => n.id === throughputBaseId) ?? null))
-    : null
-
-  const result = resolvedBase && supplyNode
-    ? calcThroughput(resolvedBase, supplyNode, missionTime, fuelAtSupply)
-    : null
+  // Compute aggregate stats for the selected supply node (or first available)
+  const focusNode = supplyNodes.find((n) => n.id === selectedSupplyNodeId) ?? supplyNodes[0] ?? null
+  const focusAircraft = focusNode ? fleet.filter((a) => a.supplyNodeId === focusNode.id) : []
+  const focusMission =
+    focusNode && focusAircraft.length > 0
+      ? calcMissionThroughput(focusNode, focusAircraft, nodes, missionTime)
+      : null
 
   return (
     <div
@@ -63,7 +42,7 @@ export default function TimeSlider({ isPlaying, onPlayPause }: Props) {
     >
       {/* Slider row */}
       <div className="flex items-center gap-3">
-        {/* Play/pause button */}
+        {/* Play/pause */}
         <button
           onClick={onPlayPause}
           title="Play/Pause simulation (Spacebar)"
@@ -85,10 +64,7 @@ export default function TimeSlider({ isPlaying, onPlayPause }: Props) {
           {isPlaying ? '⏸' : '▶'}
         </button>
 
-        <span
-          className="text-xs font-mono flex-none"
-          style={{ color: 'var(--color-accent)', minWidth: '80px' }}
-        >
+        <span className="text-xs font-mono flex-none" style={{ color: 'var(--color-accent)', minWidth: '80px' }}>
           {formatTime(missionTime)}
         </span>
 
@@ -109,10 +85,7 @@ export default function TimeSlider({ isPlaying, onPlayPause }: Props) {
             max={240}
             step={1}
             value={Math.round(maxMissionTime / 60)}
-            onChange={(e) => {
-              const hrs = Math.max(1, Math.min(240, Number(e.target.value)))
-              setMaxMissionTime(hrs * 60)
-            }}
+            onChange={(e) => setMaxMissionTime(Math.max(1, Math.min(240, Number(e.target.value))) * 60)}
             title="Max mission time (hours)"
             style={{
               background: 'var(--color-surface)',
@@ -132,37 +105,40 @@ export default function TimeSlider({ isPlaying, onPlayPause }: Props) {
 
       {/* Stats row */}
       <div className="flex items-center gap-3 text-xs flex-wrap">
-        {result ? (
+        {focusMission ? (
           <>
+            {focusNode && (
+              <span className="text-muted">
+                <strong style={{ color: '#FFCC00' }}>{focusNode.name}</strong>:
+              </span>
+            )}
             <span style={{ color: '#FFCC00' }}>
               Delivered:{' '}
               <strong>
-                {result.totalPayloadDelivered.toLocaleString('en-US', { maximumFractionDigits: 0 })} lbs
+                {focusMission.totalPayloadDelivered.toLocaleString('en-US', { maximumFractionDigits: 0 })} lbs
               </strong>
             </span>
             <span className="text-muted">|</span>
             <span className="text-muted">
-              Trips: <strong style={{ color: 'var(--color-text-primary)' }}>{result.tripsCompleted}</strong>
+              Trips: <strong style={{ color: 'var(--color-text-primary)' }}>{focusMission.totalTrips}</strong>
             </span>
             <span className="text-muted">|</span>
             <span className="text-muted">
-              Payload/trip:{' '}
-              <strong style={{ color: 'var(--color-text-primary)' }}>
-                {result.payloadPerTrip.toFixed(0)} lbs
-              </strong>
+              Aircraft: <strong style={{ color: 'var(--color-text-primary)' }}>{focusAircraft.length}</strong>
             </span>
-            <span className="text-muted">|</span>
-            <span className="text-muted">
-              Status:{' '}
-              <strong style={{ color: phaseColor(result.aircraftState.phase) }}>
-                {phaseLabel(result.aircraftState.phase)}
-              </strong>
-            </span>
+            {supplyNodes.length > 1 && (
+              <>
+                <span className="text-muted">|</span>
+                <span className="text-muted">
+                  {supplyNodes.length} supply nodes total
+                </span>
+              </>
+            )}
           </>
         ) : (
           <span className="text-muted">
-            {supplyNode
-              ? 'No base with aircraft — assign aircraft in node settings'
+            {supplyNodes.length > 0
+              ? 'Select a supply node and assign aircraft to view mission stats'
               : 'Place a supply node on the map to begin'}
           </span>
         )}
